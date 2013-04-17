@@ -10,6 +10,7 @@ public class Tester {
     private static final String TESTS_IN_EXTENSION = ".in";
     private static final String TESTS_OUT_EXTENSION = ".out";
 
+    private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
     private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " success\n";
     private static final String ERROR_MESSAGE = TESTS_FORMAT + " failed: %s\n";
 
@@ -19,6 +20,7 @@ public class Tester {
 
     public static void main(String[] args) {
         for (int i = 0; i < TESTS_COUNT; i++) {
+            System.out.printf(START_MESSAGE, i);
             try {
                 CharStream input = new ANTLRInputStream(new FileInputStream(testFileName(i, true)));
                 LanguageLexer lexer = new LanguageLexer(input);
