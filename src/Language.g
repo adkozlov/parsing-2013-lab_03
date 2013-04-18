@@ -8,24 +8,12 @@ expr
     |	INT
     |	'(' expr ')' ;
 
-protected
-INTEGER
-	:	IntegerNumber
+INT
+	:	Integral
 	;
 
-protected
-LONG
-    :   IntegerNumber LongSuffix
-    ;
-
 fragment
-LongSuffix
-    :   'l'
-    |   'L'
-    ;
-
-fragment
-IntegerNumber
+Integral
     :   DecDigit+
     |   OctPrefix OctDigit+
     |   HexPrefix HexDigit+
@@ -60,14 +48,12 @@ HexPrefix
     |   '0X'
     ;
 
-protected
 FLOAT
-    :   RealNumber FloatSuffix
+    :   Fractional FloatSuffix
     ;
 
-protected
 DOUBLE
-    :   RealNumber DoubleSuffix?
+    :   Fractional DoubleSuffix?
     ;
 
 fragment
@@ -83,7 +69,7 @@ DoubleSuffix
     ;
 
 fragment
-RealNumber
+Fractional
     :   (DecDigit+)? '.' DecDigit* Exponent?
     |   DecDigit+ Exponent?
     ;
@@ -105,7 +91,29 @@ Sign
     |   '-'
     ;
 
-// TODO char
+CHAR
+    :   '\'' (
+            EscapeSequence
+        |   ~( '\'' | '\\' | '\r' | '\n' )
+        ) '\''
+    ;
+
+fragment
+EscapeSequence
+    :   '\\' (
+            'b'
+        |   't'
+        |   'n'
+        |   'f'
+        |   'r'
+        |   '\"'
+        |   '\''
+        |   '\\'
+        |   OctDigit OctDigit OctDigit
+        |   OctDigit OctDigit
+        |   OctDigit
+        )
+    ;
 
 fragment
 LowerCase
@@ -115,4 +123,9 @@ LowerCase
 fragment
 UpperCase
     :   'A' .. 'Z'
+    ;
+
+BOOL
+    :   'True'
+    |   'False'
     ;

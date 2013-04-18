@@ -11,8 +11,8 @@ public class Tester {
     private static final String TESTS_OUT_EXTENSION = ".out";
 
     private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
-    private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " success\n";
-    private static final String ERROR_MESSAGE = TESTS_FORMAT + " failed: %s\n";
+    private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeed\n";
+    private static final String FAIL_MESSAGE = TESTS_FORMAT + " failed: %s\n";
 
     private static String testFileName(int index, boolean isIn) {
         return TESTS_PATH + String.format(TESTS_FORMAT, index) + (isIn ? TESTS_IN_EXTENSION : TESTS_OUT_EXTENSION);
@@ -33,8 +33,8 @@ public class Tester {
                 pw.close();
 
                 System.out.printf(SUCCESS_MESSAGE, i);
-            } catch (IOException e) {
-                System.out.printf(ERROR_MESSAGE, i, e.getLocalizedMessage());
+            } catch (Exception e) {
+                System.out.printf(FAIL_MESSAGE, i, e.getLocalizedMessage());
             }
         }
     }
