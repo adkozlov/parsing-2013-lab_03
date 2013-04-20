@@ -39,6 +39,11 @@ grammar Language;
 
 s
     :   GAP? ( function GAP )+
+        {
+            startBuffer();
+            addLast("int main(int argc, char *argv[])\n{\n\treturn 0;\n}");
+            finishBuffer();
+        }
     ;
 
 function
