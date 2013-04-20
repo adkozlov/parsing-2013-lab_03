@@ -1,6 +1,7 @@
 import org.antlr.v4.runtime.*;
 
 import java.io.*;
+import java.util.Arrays;
 
 public class Tester {
 
@@ -11,7 +12,7 @@ public class Tester {
     private static final String TESTS_OUT_EXTENSION = ".out";
 
     private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
-    private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeed\n";
+    private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeeded\n";
     private static final String FAIL_MESSAGE = TESTS_FORMAT + " failed: %s\n";
 
     private static String testFileName(int index, boolean isIn) {
@@ -20,21 +21,22 @@ public class Tester {
 
     public static void main(String[] args) {
         for (int i = 0; i < TESTS_COUNT; i++) {
-            System.out.printf(START_MESSAGE, i);
+            //System.out.printf(START_MESSAGE, i);
+
             try {
                 CharStream input = new ANTLRInputStream(new FileInputStream(testFileName(i, true)));
                 LanguageLexer lexer = new LanguageLexer(input);
 
                 LanguageParser parser = new LanguageParser(new CommonTokenStream(lexer));
-                // TODO parser.root();
+                parser.s();
 
                 PrintWriter pw = new PrintWriter(testFileName(i, false));
-                pw.println(); // TODO parser.getCode();
+                pw.println(parser.getCode());
                 pw.close();
 
-                System.out.printf(SUCCESS_MESSAGE, i);
+                //System.out.printf(SUCCESS_MESSAGE, i);
             } catch (Exception e) {
-                System.out.printf(FAIL_MESSAGE, i, e.getLocalizedMessage());
+                //System.out.printf(FAIL_MESSAGE, i, e.getLocalizedMessage());
             }
         }
     }
