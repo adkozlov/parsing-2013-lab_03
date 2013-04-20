@@ -45,14 +45,13 @@ function
     :   {
             startBuffer();
         }
-        definition (
-        NEWLINE
+        definition
         {
-            addLast("\n");
+            addLast("\n{\n");
         }
-        implementation
-        )+
+        ( NEWLINE implementation )+
         {
+            addLast("}\n\n");
             finishBuffer();
         }
     ;
@@ -74,7 +73,7 @@ definition
         type
         {
             addFirst($type.text.toLowerCase() + " ");
-            addLast(") {");
+            addLast(")");
         }
     ;
 

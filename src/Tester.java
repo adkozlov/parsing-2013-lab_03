@@ -8,8 +8,8 @@ public class Tester {
     private static final int TESTS_COUNT = 10;
     private static final String TESTS_PATH = "tests/";
     private static final String TESTS_FORMAT = "%02d";
-    private static final String TESTS_IN_EXTENSION = ".in";
-    private static final String TESTS_OUT_EXTENSION = ".out";
+    private static final String TESTS_IN_EXTENSION = ".hs";
+    private static final String TESTS_OUT_EXTENSION = ".c";
 
     private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
     private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeeded\n";
