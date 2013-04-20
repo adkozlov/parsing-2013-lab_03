@@ -1,7 +1,6 @@
 import org.antlr.v4.runtime.*;
 
 import java.io.*;
-import java.util.Arrays;
 
 public class Tester {
 

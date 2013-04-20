@@ -10,3 +10,4 @@ fac n = 2
 
 multiplication :: Double -> Double -> Double
 multiplication 1 3 = 3
+
