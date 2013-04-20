@@ -46,12 +46,10 @@ function
             startBuffer();
         }
         definition
-        NEWLINE
         {
             addLast("\n{\n");
         }
-        implementation
-        ( NEWLINE implementation )*
+        ( NEWLINE implementation )+
         {
             addLast("}\n\n");
             finishBuffer();
