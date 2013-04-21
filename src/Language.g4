@@ -1,49 +1,72 @@
 grammar Language;
 
 @members {
-    private String code = new String();
+    private String code = "#include <iostream>\n\n";
+    private int codeOffset = 0;
 
-    private String buffer;
-    private int current;
-
-    public String getCode() {
-        return code;
+    public String makeOffset() {
+        String result = "";
+        for (int i = 0; i < codeOffset; i++) {
+            result += "\t";
+        }
+        return result;
     }
 
-    private void startBuffer() {
-        buffer = new String();
-        current = 0;
+    public String getCode() {
+        return code + "int main(int argc, char *argv[])\n{\n\treturn 0;\n}\n";
     }
 
     private void addFirst(String code) {
-        buffer = code + buffer;
+        if (buffer == null) {
+            this.code = code + this.code;
+        } else {
+            buffer = code + buffer;
+        }
     }
 
     private void addLast(String code) {
-        buffer += code;
+        if (buffer == null) {
+            this.code += code;
+        } else {
+            buffer += code;
+        }
+    }
+
+    private String buffer = null;
+
+    private void startBuffer() {
+        buffer = new String();
     }
 
     private void finishBuffer() {
         code += buffer;
         buffer = null;
+        currentArgument = 0;
     }
 
+    private int currentArgument = 0;
+
     private int nextArgument() {
-        return current++;
+        return currentArgument++;
     }
 
     private int getArgumentCount() {
-        return current;
+        return currentArgument;
     }
 }
 
-s
-    :   GAP? ( function GAP )+
-        {
-            startBuffer();
-            addLast("int main(int argc, char *argv[])\n{\n\treturn 0;\n}");
-            finishBuffer();
-        }
+program
+    :   NEWLINE* (
+                    (
+                        function
+                    |   commentBlock
+                    |   commentLine
+                    )
+                    NEWLINE+
+                    {
+                        addLast("\n\n");
+                    }
+                )* EOF
     ;
 
 function
@@ -54,36 +77,59 @@ function
         {
             addLast("\n{\n");
         }
-        ( NEWLINE implementation )+
+        ( NEWLINE+ implementation )+
         {
-            addLast("}\n\n");
+            addLast("}");
             finishBuffer();
         }
     ;
 
 definition
-    :   id
+    :   id WS '::' WS
         {
-            addLast($id.text.toLowerCase() + "(");
+            addLast($id.text + "(");
         }
-        WS '::'  WS (
-        type
-        {
-            if (getArgumentCount() > 0) {
-                addLast(", ");
+        (
+            Type
+            {
+                if (getArgumentCount() > 0) {
+                    addLast(", ");
+                }
+                addLast($Type.text.toLowerCase() + " arg" + nextArgument());
             }
-            addLast($type.text.toLowerCase() + " arg" + nextArgument());
-        }
-        WS '->' WS )*
-        type
+            WS '->' WS )*
+        Type
         {
-            addFirst($type.text.toLowerCase() + " ");
+            addFirst($Type.text.toLowerCase() + " ");
             addLast(")");
         }
+        commentLine?
     ;
 
 implementation
     :   id WS ( ( value | id ) WS )* '=' WS value
+    ;
+
+commentBlock
+    :   '{-' '|'? multiLineCommentText '-}'
+        {
+            addLast("/*" + $multiLineCommentText.text + "*/");
+        }
+    ;
+
+multiLineCommentText
+    :   ~'-}'*
+    ;
+
+commentLine
+    :   '--' commentText
+        {
+            addLast("//" + $commentText.text);
+        }
+    ;
+
+commentText
+    :   ~NEWLINE*
     ;
 
 WS
@@ -97,11 +143,7 @@ NEWLINE
     :   '\n'
     ;
 
-GAP
-    :   NEWLINE+
-    ;
-
-type
+Type
     :   'Int'
     |   'Double'
     |   'Bool'

@@ -1,5 +1,12 @@
 
 
+{-main :: IO -- kjdkj
+main = print  fac 5
+
+ lkjk -}
+
+-- lkjkj
+
 constant   :: Bool
 constant = False
 

@@ -27,7 +27,7 @@ public class Tester {
                 LanguageLexer lexer = new LanguageLexer(input);
 
                 LanguageParser parser = new LanguageParser(new CommonTokenStream(lexer));
-                parser.s();
+                parser.program();
 
                 PrintWriter pw = new PrintWriter(testFileName(i, false));
                 pw.println(parser.getCode());
@@ -35,7 +35,7 @@ public class Tester {
 
                 //System.out.printf(SUCCESS_MESSAGE, i);
             } catch (Exception e) {
-                //System.out.printf(FAIL_MESSAGE, i, e.getLocalizedMessage());
+                //System.out.printf(FAIL_MESSAGE, i, e.getMessage());
             }
         }
     }
