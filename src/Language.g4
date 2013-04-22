@@ -1,135 +1,183 @@
 grammar Language;
 
+@header {
+    import java.util.Map;
+    import java.util.HashMap;
+}
+
 @members {
-    private String code = "#include <iostream>\n\n";
-    private int codeOffset = 0;
+    private class Function {
+        private String definition = "";
+        private String implementation = "";
+        private int count = 0;
+    }
 
-    public String makeOffset() {
-        String result = "";
-        for (int i = 0; i < codeOffset; i++) {
-            result += "\t";
+    private Map<String, Function> functions = new HashMap<String, Function>();
+    private Function current;
+
+    public String getCode(String fileName) {
+        String code = "public class Translated_%s {\n";
+
+        for (Function function : functions.values()) {
+            String functionCode = "\n\tpublic static " + function.definition + " {\n";
+            functionCode += function.implementation;
+            functionCode += "\t}\n";
+
+            code += functionCode;
         }
-        return result;
+
+        code += "\n}\n";
+        return String.format(code, fileName);
     }
 
-    public String getCode() {
-        return code + "int main(int argc, char *argv[])\n{\n\treturn 0;\n}\n";
-    }
-
-    private void addFirst(String code) {
-        if (buffer == null) {
-            this.code = code + this.code;
+    private void addFirst(String code, boolean isDefinition) {
+        if (isDefinition) {
+            current.definition = code + current.definition;
         } else {
-            buffer = code + buffer;
+            current.implementation = code + current.implementation;
         }
     }
 
-    private void addLast(String code) {
-        if (buffer == null) {
-            this.code += code;
+    private void addLast(String code, boolean isDefinition) {
+        if (isDefinition) {
+            current.definition += code;
         } else {
-            buffer += code;
+            current.implementation += code;
         }
     }
-
-    private String buffer = null;
-
-    private void startBuffer() {
-        buffer = new String();
-    }
-
-    private void finishBuffer() {
-        code += buffer;
-        buffer = null;
-        currentArgument = 0;
-    }
-
-    private int currentArgument = 0;
 
     private int nextArgument() {
-        return currentArgument++;
+        return current.count++;
     }
 
     private int getArgumentCount() {
-        return currentArgument;
+        return current.count;
+    }
+
+    private String getTypeName(String type) {
+        if (type.equals("Int")) {
+            return "int";
+        } else if (type.equals("Double")) {
+            return "double";
+        } else if (type.equals("Bool")) {
+            return "boolean";
+        } else if (type.equals("IO()")) {
+            return "void";
+        } else {
+            throw new IllegalArgumentException("unknown type");
+        }
     }
 }
 
 program
-    :   NEWLINE* (
-                    (
-                        function
-                    |   commentBlock
-                    |   commentLine
-                    )
-                    NEWLINE+
-                    {
-                        addLast("\n\n");
-                    }
-                )* EOF
+    :   NEWLINE* ( function NEWLINE+ )* EOF
     ;
 
 function
-    :   {
-            startBuffer();
-        }
-        definition
-        {
-            addLast("\n{\n");
-        }
-        ( NEWLINE+ implementation )+
-        {
-            addLast("}");
-            finishBuffer();
-        }
+    :   definition
+    |   implementation
     ;
 
 definition
+    @init {
+        boolean isMain = false;
+    }
     :   id WS '::' WS
         {
-            addLast($id.text + "(");
+            current = functions.get($id.text);
+            if (current == null) {
+                current = new Function();
+            }
+            addLast($id.text + "(", true);
+
+            if ($id.text.equals("main")) {
+                isMain = true;
+            }
         }
         (
             Type
             {
                 if (getArgumentCount() > 0) {
-                    addLast(", ");
+                    addLast(", ", true);
                 }
-                addLast($Type.text.toLowerCase() + " arg" + nextArgument());
+                addLast(getTypeName($Type.text) + " arg" + nextArgument(), true);
             }
             WS '->' WS )*
-        Type
+        Type WS?
         {
-            addFirst($Type.text.toLowerCase() + " ");
-            addLast(")");
+            if (isMain) {
+                addLast("String[] args", true);
+            }
+            addLast(")", true);
+            addFirst(getTypeName($Type.text) + " ", true);
+
+            functions.put($id.text, current);
+            current = null;
         }
-        commentLine?
     ;
 
 implementation
-    :   id WS ( ( value | id ) WS )* '=' WS value
+    :   id ( WS argument )* WS? ( '|' booleanExpression WS? )? '=' WS value
     ;
 
-commentBlock
-    :   '{-' '|'? multiLineCommentText '-}'
-        {
-            addLast("/*" + $multiLineCommentText.text + "*/");
-        }
+argument
+    :   value
+    |   id
+    |   UnderLine
     ;
 
-multiLineCommentText
-    :   ~'-}'*
+LEFT_PARENTHESIS
+    :   '('
     ;
 
-commentLine
-    :   '--' commentText
-        {
-            addLast("//" + $commentText.text);
-        }
+RIGHT_PARENTHESIS
+    :   ')'
     ;
 
-commentText
-    :   ~NEWLINE*
+EqOperator
+    :   '=='
+    |   '/='
+    ;
+
+ordOperator
+    :   EqOperator
+    |   '<'
+    |   '<='
+    |   '>'
+    |   '>='
+    ;
+
+booleanExpression
+    :   id
+    |   Bool
+    |   LEFT_PARENTHESIS booleanExpression RIGHT_PARENTHESIS
+    |   booleanExpression WS? boolBinaryOperator WS? booleanExpression
+    |   BoolUnaryOperator WS booleanExpression
+    |   arithmeticExpression WS? ordOperator WS? arithmeticExpression
+    ;
+
+boolBinaryOperator
+    :   '&&'
+    |   '||'
+    |   EqOperator
+    ;
+
+BoolUnaryOperator
+    :   'not'
+    ;
+
+arithmeticExpression
+    :   id
+    |   number
+    |   LEFT_PARENTHESIS arithmeticExpression RIGHT_PARENTHESIS
+    |   arithmeticExpression WS? ArithmeticBinaryOperator WS? arithmeticExpression
+    ;
+
+ArithmeticBinaryOperator
+    :   '+'
+    |   '-'
+    |   '*'
+    |   '/'
     ;
 
 WS
@@ -147,7 +195,7 @@ Type
     :   'Int'
     |   'Double'
     |   'Bool'
-    |   'Char'
+    |   'IO()'
     ;
 
 LowerCase
@@ -170,35 +218,13 @@ id
         ) (
             LowerCase
         |   UpperCase
-        |   DecDigit
+        |   Digit
         |   UnderLine
         )*
     ;
 
-DecDigit
+Digit
     :   '0' .. '9'
-    ;
-
-OctDigit
-    :   '0' .. '7'
-    ;
-
-OctPrefix
-    :   '0'
-            'o'
-        |   'O'
-    ;
-
-HexDigit
-    :   DecDigit
-    |   'a' .. 'f'
-    |   'A' .. 'F'
-    ;
-
-HexPrefix
-    :   '0'
-            'x'
-        |   'X'
     ;
 
 Sign
@@ -207,18 +233,24 @@ Sign
     ;
 
 value
+    :   number
+    |   Bool
+    ;
+
+number
     :   integral
-    |   bool
+    |   fractional
     ;
 
 integral
-    :   Sign?
-            DecDigit+
-        |   OctPrefix OctDigit+
-        |   HexPrefix HexDigit+
+    :   Sign? Digit+
     ;
 
-bool
+fractional
+    :
+    ;
+
+Bool
     :   'True'
     |   'False'
     ;

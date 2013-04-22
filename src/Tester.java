@@ -4,38 +4,42 @@ import java.io.*;
 
 public class Tester {
 
-    private static final int TESTS_COUNT = 10;
     private static final String TESTS_PATH = "tests/";
-    private static final String TESTS_FORMAT = "%02d";
+    private static final String TESTS_FORMAT = "%s";
     private static final String TESTS_IN_EXTENSION = ".hs";
-    private static final String TESTS_OUT_EXTENSION = ".c";
+    private static final String TESTS_OUT_EXTENSION = ".java";
 
     private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
     private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeeded\n";
     private static final String FAIL_MESSAGE = TESTS_FORMAT + " failed: %s\n";
 
-    private static String testFileName(int index, boolean isIn) {
-        return TESTS_PATH + String.format(TESTS_FORMAT, index) + (isIn ? TESTS_IN_EXTENSION : TESTS_OUT_EXTENSION);
-    }
-
     public static void main(String[] args) {
-        for (int i = 0; i < TESTS_COUNT; i++) {
-            //System.out.printf(START_MESSAGE, i);
+        File dir  = new File(TESTS_PATH);
+        dir.mkdir();
+
+        for (String fileName : dir.list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(TESTS_IN_EXTENSION);
+            }
+        })) {
+            //System.out.printf(START_MESSAGE, fileName);
+            String testName = fileName.replace(TESTS_IN_EXTENSION, "");
 
             try {
-                CharStream input = new ANTLRInputStream(new FileInputStream(testFileName(i, true)));
+                CharStream input = new ANTLRInputStream(new FileInputStream(TESTS_PATH + testName + TESTS_IN_EXTENSION));
                 LanguageLexer lexer = new LanguageLexer(input);
 
                 LanguageParser parser = new LanguageParser(new CommonTokenStream(lexer));
                 parser.program();
 
-                PrintWriter pw = new PrintWriter(testFileName(i, false));
-                pw.println(parser.getCode());
+                PrintWriter pw = new PrintWriter(TESTS_PATH + testName + TESTS_OUT_EXTENSION);
+                pw.println(parser.getCode(testName));
                 pw.close();
 
-                //System.out.printf(SUCCESS_MESSAGE, i);
+                //System.out.printf(SUCCESS_MESSAGE, fileName);
             } catch (Exception e) {
-                //System.out.printf(FAIL_MESSAGE, i, e.getMessage());
+                //System.out.printf(FAIL_MESSAGE, fileName, e.getMessage());
             }
         }
     }
