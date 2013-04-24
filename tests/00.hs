@@ -2,18 +2,18 @@
 fac :: Int -> Int
 
 constant   ::   Bool
-constant= not False
+constant=
 
 strange :: Bool -> Bool -> Bool
-strange _ a | a == True = True
+strange _ aa=
 
-fac 0 = 1
-fac n = 2
+fac 0 =
+fac n =
 
 
 multiplication :: Double -> Double -> Double
-multiplication n k| (n+(-5))>0 = 3
+multiplication n k|n>0=
 
 main ::     IO()
 
-main = print 5
+main =
