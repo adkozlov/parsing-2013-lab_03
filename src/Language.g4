@@ -6,11 +6,11 @@ grammar Language;
 }
 
 @members {
-    protected class Function {
+    private class Function {
         private String definition = "";
         private String implementation = "";
         private int count = 0;
-        private boolean isFirstLine = true;
+        private int linesCount = 0;
 
         public String getDefinition() {
             return definition;
@@ -28,12 +28,12 @@ grammar Language;
             return count;
         }
 
-        private boolean isFirst() {
-            return isFirstLine;
+        private int getLinesCount() {
+            return linesCount;
         }
 
-        private void changeIsFirst() {
-            isFirstLine = false;
+        private int nextLinesCount() {
+            return linesCount++;
         }
 
         private void addFirst(String code, boolean isDefinition) {
@@ -68,11 +68,15 @@ grammar Language;
         String code = "public class Translated_%s {\n";
 
         for (Function function : functions.values()) {
-            String functionCode = "\n\tpublic static " + function.getDefinition() + " {\n";
-            functionCode += function.getImplementation().replace("\t", "\t\t");
-            functionCode += "\t}\n";
+            if (function.getLinesCount() != 0) {
+                function.addLast(" else {\n\tthrow new IllegalArgumentException();\n}", false);
+            }
 
-            code += functionCode;
+            String functionCode = "\npublic static " + function.getDefinition() + " {";
+            functionCode += function.getImplementation().replaceAll("\n", "\n\t");
+            functionCode += "\n}\n";
+
+            code += functionCode.replaceAll("\n", "\n\t");
         }
 
         code += "\n}\n";
@@ -80,16 +84,10 @@ grammar Language;
     }
 
     private String getTypeName(String type) {
-        if (type.equals("Int")) {
-            return "int";
-        } else if (type.equals("Double")) {
-            return "double";
-        } else if (type.equals("Bool")) {
+        if (type.equals("Bool")) {
             return "boolean";
-        } else if (type.equals("IO()")) {
-            return "void";
         } else {
-            throw new IllegalArgumentException("unknown type");
+            return type.toLowerCase();
         }
     }
 }
@@ -100,24 +98,20 @@ program
 
 function
     :   definition
+    |   mainDefinition
     |   implementation
+    |   mainImplementation
     ;
 
 definition
-    @init {
-        boolean isMain = false;
-    }
-    :   id WS '::' WS
+    :   id WS? '::' WS?
         {
             current = functions.get($id.text);
             if (current == null) {
                 current = new Function();
             }
-            current.addLast($id.text + "(", true);
 
-            if ($id.text.equals("main")) {
-                isMain = true;
-            }
+            current.addLast($id.text + "(", true);
         }
         (
             Type
@@ -127,18 +121,30 @@ definition
                 }
                 current.addLast(getTypeName($Type.text) + " arg" + current.nextArgument(), true);
             }
-            WS '->' WS )*
+            WS? '->' WS? )*
         Type WS?
         {
-            if (isMain) {
-                current.addLast("String[] args", true);
-            }
             current.addLast(")", true);
             current.addFirst(getTypeName($Type.text) + " ", true);
 
             functions.put($id.text, current);
             current = null;
         }
+    ;
+
+mainDefinition
+    :   'main' WS? '::' WS? 'IO()'
+         {
+             current = functions.get("main");
+             if (current == null) {
+                 current = new Function();
+             }
+
+             current.addLast("void main(String[] args)", true);
+
+             functions.put("main", current);
+             current = null;
+         }
     ;
 
 implementation
@@ -187,25 +193,36 @@ implementation
         '=' WS?
         {
             if (!buffer.equals("")) {
-                if (!current.isFirst()) {
+                if (current.getLinesCount() != 0) {
                     current.addLast(" else ", false);
                 } else {
-                    current.addLast("\t", false);
-                    current.changeIsFirst();
+                    current.addLast("\n", false);
+                    current.nextLinesCount();
                 }
-                current.addLast("if (" + buffer + ") {\n", false);
+                current.addLast("if (" + buffer + ") {", false);
 
                 buffer = "";
             }
         }
         expression
         {
-            current.addLast("\treturn " + buffer + ";\n}", false);
+            current.addLast("\n", false);
+            if (currentArgument != 0) {
+                current.addLast("\t", false);
+            }
+            current.addLast("return " + buffer + ";", false);
+            if (currentArgument != 0) {
+                current.addLast("\n}", false);
+            }
 
             functions.put($id.text, current);
             buffer = null;
             currentArgument = 0;
         }
+    ;
+
+mainImplementation
+    :   'main' WS? '=' WS? 'print' WS expression
     ;
 
 argument
@@ -224,11 +241,7 @@ argument
     ;
 
 call
-   :    id
-        {
-            System.out.println($id.text);
-        }
-   ( WS ( value | id | call ))
+   :    id WS? ( expression WS )*
    ;
 
 LEFT_PARENTHESIS
@@ -253,14 +266,14 @@ ordOperator
     ;
 
 expression
-    :   booleanExpression
+    :   id
+    |   booleanExpression
     |   arithmeticExpression
     ;
 
 booleanExpression
-    :   id
-    |   Bool
-    |   call
+    :   Bool
+    |   id
     |   LEFT_PARENTHESIS WS? booleanExpression WS? RIGHT_PARENTHESIS
     |   booleanExpression WS? boolBinaryOperator WS? booleanExpression
     |   BoolUnaryOperator WS booleanExpression
@@ -278,9 +291,8 @@ BoolUnaryOperator
     ;
 
 arithmeticExpression
-    :   id
-    |   number
-    |   call
+    :   integral
+    |   id
     |   LEFT_PARENTHESIS WS? arithmeticExpression WS? RIGHT_PARENTHESIS
     |   arithmeticExpression WS? ArithmeticBinaryOperator WS? arithmeticExpression
     ;
@@ -305,9 +317,7 @@ NEWLINE
 
 Type
     :   'Int'
-    |   'Double'
     |   'Bool'
-    |   'IO()'
     ;
 
 LowerCase
@@ -322,18 +332,34 @@ UnderLine
     :   '_'
     ;
 
+Apostrophe
+    :   '\''
+    ;
+
 id
+    :   (
+        (
+            LowerCase
+        |   UpperCase
+        ) idSuffix?
+    )
+    | (
+        UnderLine idSuffix
+    )
+    ;
+
+idSuffix
     :   (
             LowerCase
         |   UpperCase
-        |   UnderLine
-        ) (
-            LowerCase
-        |   UpperCase
         |   Digit
-        |   UnderLine
-        )*
+        |   Apostrophe
+    )+
+    | (
+        UnderLine idSuffix?
+    )
     ;
+
 
 Digit
     :   '0' .. '9'
@@ -345,23 +371,13 @@ Sign
     ;
 
 value
-    :   number
-    |   arithmeticExpression
-    |   Bool
-    |   booleanExpression
-    ;
-
-number
     :   integral
-    |   fractional
+    |   Bool
+    |   expression
     ;
 
 integral
     :   Sign? Digit+
-    ;
-
-fractional
-    :
     ;
 
 Bool
