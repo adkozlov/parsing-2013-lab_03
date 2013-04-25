@@ -176,7 +176,7 @@ implementation
                 currentArgument++;
             }
         )* WS? (
-            '|'
+            '|' WS?
             {
                 if (!isFirstArgument) {
                     buffer += " && ";
@@ -225,8 +225,13 @@ mainImplementation
     :   'main' WS? '=' WS? 'print' WS expression
     ;
 
+Type
+    :   'Int'
+    |   'Bool'
+    ;
+
 argument
-    :   value
+    :   expression
     {
         addLastToBuffer(" == arg" + currentArgument);
     }
@@ -266,19 +271,30 @@ ordOperator
     ;
 
 expression
-    :   id
-    |   booleanExpression
+    :   booleanExpression
     |   arithmeticExpression
     ;
 
 booleanExpression
-    :   Bool
-    |   id
-    |   LEFT_PARENTHESIS WS? booleanExpression WS? RIGHT_PARENTHESIS
-    |   booleanExpression WS? boolBinaryOperator WS? booleanExpression
-    |   BoolUnaryOperator WS booleanExpression
-    |   arithmeticExpression WS? ordOperator WS? arithmeticExpression
+    :   ( booleanMonomial WS? booleanExpressionSuffix )
     ;
+
+booleanMonomial
+    :   booleanValue
+    |   ( BoolUnaryOperator WS booleanMonomial )
+    ;
+
+booleanExpressionSuffix
+    :   WS?
+    |   ( boolBinaryOperator WS? booleanMonomial WS? booleanExpressionSuffix)
+    ;
+
+booleanValue
+    :   Bool
+    |   call
+    |   ( LEFT_PARENTHESIS WS? booleanExpression WS? RIGHT_PARENTHESIS )
+    ;
+
 
 boolBinaryOperator
     :   '&&'
@@ -290,11 +306,18 @@ BoolUnaryOperator
     :   'not'
     ;
 
+
+Bool
+    :   'True'
+    |   'False'
+    ;
+
 arithmeticExpression
     :   integral
     |   id
-    |   LEFT_PARENTHESIS WS? arithmeticExpression WS? RIGHT_PARENTHESIS
-    |   arithmeticExpression WS? ArithmeticBinaryOperator WS? arithmeticExpression
+    |   call
+    |   ( LEFT_PARENTHESIS WS? arithmeticExpression WS? RIGHT_PARENTHESIS )
+    |   ( arithmeticExpression WS? ArithmeticBinaryOperator WS? arithmeticExpression )
     ;
 
 ArithmeticBinaryOperator
@@ -313,11 +336,6 @@ WS
 
 NEWLINE
     :   '\n'
-    ;
-
-Type
-    :   'Int'
-    |   'Bool'
     ;
 
 LowerCase
@@ -370,17 +388,6 @@ Sign
     |   '-'
     ;
 
-value
-    :   integral
-    |   Bool
-    |   expression
-    ;
-
 integral
     :   Sign? Digit+
-    ;
-
-Bool
-    :   'True'
-    |   'False'
     ;
