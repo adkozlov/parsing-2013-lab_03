@@ -158,6 +158,7 @@ implementation
                 current = new Function();
             }
 
+            variables = new HashMap<String, Integer>();
             buffer = "";
         }
         (
@@ -204,7 +205,7 @@ implementation
                 buffer = "";
             }
         }
-        expression
+        arithmeticExpression
         {
             current.addLast("\n", false);
             if (currentArgument != 0) {
@@ -218,11 +219,12 @@ implementation
             functions.put($id.text, current);
             buffer = null;
             currentArgument = 0;
+            variables = null;
         }
     ;
 
 mainImplementation
-    :   'main' WS? '=' WS? 'print' WS expression
+    :   'main' WS? '=' WS? 'print' WS arithmeticExpression
     ;
 
 Type
@@ -231,22 +233,26 @@ Type
     ;
 
 argument
-    :   expression
-    {
-        addLastToBuffer(" == arg" + currentArgument);
-    }
-    |   id
-    {
-        variables.put($id.text, currentArgument++);
-    }
-    |   UnderLine
-    {
-        addLastToBuffer("true");
-    }
+    :   (
+        integral
+        {
+            addLastToBuffer(" == arg" + currentArgument);
+        }
+    ) | (
+        id
+        {
+            variables.put($id.text, currentArgument++);
+        }
+    ) | (
+        UnderLine
+        {
+            addLastToBuffer("true");
+        }
+    )
     ;
 
 call
-   :    id WS? ( expression WS )*
+   :    id WS? ( arithmeticExpression WS )*
    ;
 
 LEFT_PARENTHESIS
@@ -270,11 +276,6 @@ ordOperator
     |   '>='
     ;
 
-expression
-    :   booleanExpression
-    |   arithmeticExpression
-    ;
-
 booleanExpression
     :   booleanMonomial WS? booleanExpressionSuffix
     ;
@@ -290,8 +291,17 @@ booleanExpressionSuffix
     ;
 
 booleanValue
-    :   Bool
-    |   call
+    :   (
+        Bool
+        {
+            addLastToBuffer($Bool.text);
+        }
+    ) | (
+        id
+        {
+            addLastToBuffer("arg" + variables.get($id.text));
+        }
+    )
     |   ( arithmeticExpression WS? ordOperator WS? arithmeticExpression )
     |   ( LEFT_PARENTHESIS WS? booleanExpression WS? ( EqOperator WS? booleanExpression WS? )? RIGHT_PARENTHESIS )
     ;
@@ -317,13 +327,38 @@ arithmeticExpression
 
 arithmeticExpressionSuffix
     :   WS?
-    |   ( ArithmeticBinaryOperator WS? arithmeticValue WS? arithmeticExpressionSuffix )
+    |   (
+        ArithmeticBinaryOperator
+        {
+            addLastToBuffer($ArithmeticBinaryOperator.text);
+        }
+        WS? arithmeticValue WS? arithmeticExpressionSuffix
+    )
     ;
 
 arithmeticValue
-    :   integral
-    |   call
-    |   ( LEFT_PARENTHESIS WS? arithmeticExpression WS? RIGHT_PARENTHESIS )
+    :   (
+        integral
+        {
+            addLastToBuffer($integral.text);
+        }
+    ) | (
+        id
+        {
+            addLastToBuffer("arg" + variables.get($id.text));
+        }
+    ) | (
+        call
+    ) | (
+        LEFT_PARENTHESIS WS?
+        {
+            addLastToBuffer("(");
+        }
+        arithmeticExpression WS? RIGHT_PARENTHESIS
+        {
+            addLastToBuffer(")");
+        }
+    )
     ;
 
 ArithmeticBinaryOperator
@@ -331,6 +366,10 @@ ArithmeticBinaryOperator
     |   '-'
     |   '*'
     |   '/'
+    ;
+
+integral
+    :   Sign? Digit+
     ;
 
 WS
@@ -394,6 +433,3 @@ Sign
     |   '-'
     ;
 
-integral
-    :   Sign? Digit+
-    ;

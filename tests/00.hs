@@ -1,11 +1,11 @@
 
 fac :: Int -> Int
 
-constant   ::   Bool
-constant= not False
+constant   ::   Int
+constant= 0
 
-strange:: Bool -> Bool -> Bool
-strange _ a_ = a_ == True
+strange::   Int -> Int -> Int
+strange _ a_ = a_
 
 fac 0 = 1
 fac n = n * (n - 1)
@@ -17,3 +17,4 @@ multiplication n' _3| n'>0= 0
 main ::     IO()
 
 main = print (5+2 * (3 - 4))
+

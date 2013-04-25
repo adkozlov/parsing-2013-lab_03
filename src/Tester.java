@@ -23,7 +23,7 @@ public class Tester {
                 return name.endsWith(TESTS_IN_EXTENSION);
             }
         })) {
-            //System.out.printf(START_MESSAGE, fileName);
+            System.out.printf(START_MESSAGE, fileName);
             String testName = fileName.replace(TESTS_IN_EXTENSION, "");
 
             try {
@@ -37,9 +37,9 @@ public class Tester {
                 pw.println(parser.getCode(testName));
                 pw.close();
 
-                //System.out.printf(SUCCESS_MESSAGE, fileName);
+                System.out.printf(SUCCESS_MESSAGE, fileName);
             } catch (Exception e) {
-                //System.out.printf(FAIL_MESSAGE, fileName, e.getMessage());
+                System.out.printf(FAIL_MESSAGE, fileName, e.getMessage());
             }
         }
     }
