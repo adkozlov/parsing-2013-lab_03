@@ -276,7 +276,7 @@ expression
     ;
 
 booleanExpression
-    :   ( booleanMonomial WS? booleanExpressionSuffix )
+    :   booleanMonomial WS? booleanExpressionSuffix
     ;
 
 booleanMonomial
@@ -286,15 +286,15 @@ booleanMonomial
 
 booleanExpressionSuffix
     :   WS?
-    |   ( boolBinaryOperator WS? booleanMonomial WS? booleanExpressionSuffix)
+    |   ( boolBinaryOperator WS? booleanMonomial WS? booleanExpressionSuffix )
     ;
 
 booleanValue
     :   Bool
     |   call
-    |   ( LEFT_PARENTHESIS WS? booleanExpression WS? RIGHT_PARENTHESIS )
+    |   ( arithmeticExpression WS? ordOperator WS? arithmeticExpression )
+    |   ( LEFT_PARENTHESIS WS? booleanExpression WS? ( EqOperator WS? booleanExpression WS? )? RIGHT_PARENTHESIS )
     ;
-
 
 boolBinaryOperator
     :   '&&'
@@ -306,18 +306,24 @@ BoolUnaryOperator
     :   'not'
     ;
 
-
 Bool
     :   'True'
     |   'False'
     ;
 
 arithmeticExpression
+    :   arithmeticValue WS? arithmeticExpressionSuffix
+    ;
+
+arithmeticExpressionSuffix
+    :   WS?
+    |   ( ArithmeticBinaryOperator WS? arithmeticValue WS? arithmeticExpressionSuffix )
+    ;
+
+arithmeticValue
     :   integral
-    |   id
     |   call
     |   ( LEFT_PARENTHESIS WS? arithmeticExpression WS? RIGHT_PARENTHESIS )
-    |   ( arithmeticExpression WS? ArithmeticBinaryOperator WS? arithmeticExpression )
     ;
 
 ArithmeticBinaryOperator
