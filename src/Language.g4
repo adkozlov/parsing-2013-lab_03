@@ -11,6 +11,7 @@ grammar Language;
         private String implementation = "";
         private int count = 0;
         private int linesCount = 0;
+        private boolean needsThrow = true;
 
         public String getDefinition() {
             return definition;
@@ -32,8 +33,8 @@ grammar Language;
             return linesCount;
         }
 
-        private int nextLinesCount() {
-            return linesCount++;
+        private void nextLine() {
+            linesCount++;
         }
 
         private void addFirst(String code, boolean isDefinition) {
@@ -64,11 +65,11 @@ grammar Language;
         buffer += code;
     }
 
-    public String getCode(String fileName) {
-        String code = "public class Translated_%s {\n";
+    public String getCode(String mask, String fileName) {
+        String code = String.format("public class %s%s {\n", mask, fileName);
 
         for (Function function : functions.values()) {
-            if (function.getLinesCount() != 0) {
+            if (function.needsThrow) {
                 function.addLast(" else {\n\tthrow new IllegalArgumentException();\n}", false);
             }
 
@@ -80,7 +81,7 @@ grammar Language;
         }
 
         code += "\n}\n";
-        return String.format(code, fileName);
+        return code;
     }
 
     private String getTypeName(String type) {
@@ -90,10 +91,28 @@ grammar Language;
             return type.toLowerCase();
         }
     }
+
+    private Function start(String name) {
+        Function result = functions.get(name);
+        if (result == null) {
+            result = new Function();
+        }
+        currentArgument = 0;
+        buffer = "";
+
+        return result;
+    }
+
+    private void finish(String name, Function function) {
+        functions.put(name, function);
+        function = null;
+        currentArgument = 0;
+        buffer = null;
+    }
 }
 
 program
-    :   NEWLINE* ( function NEWLINE+ )* EOF
+    :   NEWLINE* ( function WS? comment? NEWLINE+ )* EOF
     ;
 
 function
@@ -106,11 +125,7 @@ function
 definition
     :   id WS? '::' WS?
         {
-            current = functions.get($id.text);
-            if (current == null) {
-                current = new Function();
-            }
-
+            current = start($id.text);
             current.addLast($id.text + "(", true);
         }
         (
@@ -127,133 +142,154 @@ definition
             current.addLast(")", true);
             current.addFirst(getTypeName($Type.text) + " ", true);
 
-            functions.put($id.text, current);
-            current = null;
+            finish($id.text, current);
         }
     ;
 
 mainDefinition
     :   'main' WS? '::' WS? 'IO()'
          {
-             current = functions.get("main");
-             if (current == null) {
-                 current = new Function();
-             }
-
-             current.addLast("void main(String[] args)", true);
-
-             functions.put("main", current);
-             current = null;
+            current = start("main");
+            current.addLast("void main(String[] args)", true);
+            finish("main", current);
          }
     ;
 
 implementation
     @init {
         boolean isFirstArgument = true;
+        String arguments = "";
     }
     :   id
         {
-            current = functions.get($id.text);
-            if (current == null) {
-                current = new Function();
-            }
-
+            current = start($id.text);
             variables = new HashMap<String, Integer>();
-            buffer = "";
         }
         (
-            WS
+            WS argument
             {
-                if (!isFirstArgument) {
-                     buffer += " && ";
-                } else {
+                if (!buffer.equals("")) {
+                    if (!isFirstArgument) {
+                        arguments += " && ";
+                    } else {
                     isFirstArgument = false;
+                    }
+
+                    arguments += buffer;
+
                 }
-                buffer += "(";
-            }
-            argument
-            {
-                buffer  += ")";
+
                 currentArgument++;
+                buffer = "";
             }
         )* WS? (
-            '|' WS?
+            '|' WS? booleanExpression WS?
             {
                 if (!isFirstArgument) {
-                    buffer += " && ";
+                    arguments += " && ";
                 } else {
                     isFirstArgument = false;
                 }
-                buffer += "(";
-            }
-            booleanExpression WS?
-            {
-                buffer += ")";
+
+                arguments += buffer;
+                buffer = "";
             }
         )?
         '=' WS?
         {
-            if (!buffer.equals("")) {
-                if (current.getLinesCount() != 0) {
-                    current.addLast(" else ", false);
-                } else {
-                    current.addLast("\n", false);
-                    current.nextLinesCount();
-                }
-                current.addLast("if (" + buffer + ") {", false);
+            if (current.getLinesCount() != 0) {
+                current.addLast(" else ", false);
+            } else {
+                current.addLast("\n", false);
+            }
 
-                buffer = "";
+            if (!arguments.equals("")) {
+                current.addLast("if (" + arguments + ") ", false);
+            } else {
+                current.needsThrow = false;
+            }
+
+            if (current.getLinesCount() != 0 || !arguments.equals("")) {
+                current.addLast("{", false);
             }
         }
         arithmeticExpression
         {
-            current.addLast("\n", false);
-            if (currentArgument != 0) {
-                current.addLast("\t", false);
+            if (current.getLinesCount() != 0 || !arguments.equals("")) {
+                current.addLast("\n\t", false);
             }
             current.addLast("return " + buffer + ";", false);
-            if (currentArgument != 0) {
+            if (current.getLinesCount() != 0 || !arguments.equals("")) {
                 current.addLast("\n}", false);
             }
 
-            functions.put($id.text, current);
-            buffer = null;
-            currentArgument = 0;
+            current.nextLine();
+
+            finish($id.text, current);
             variables = null;
         }
     ;
 
 mainImplementation
-    :   'main' WS? '=' WS? 'print' WS arithmeticExpression
+    :   'main' WS? '=' WS? 'print' WS
+    {
+        current = start("main");
+        current.needsThrow = false;
+    }
+    arithmeticExpression
+    {
+        current.addLast("\nSystem.out.println(" + buffer + ");", false);
+        finish("main", current);
+    }
+    ;
+
+comment
+    :   CommentLinePrefix ( ~NEWLINE )*
+    ;
+
+CommentLinePrefix
+    :   '--'
     ;
 
 Type
     :   'Int'
+    |   'Double'
     |   'Bool'
     ;
 
 argument
     :   (
-        integral
-        {
-            addLastToBuffer(" == arg" + currentArgument);
-        }
+            number
+            {
+                addLastToBuffer($number.text + " == arg" + currentArgument);
+            }
     ) | (
-        id
-        {
-            variables.put($id.text, currentArgument++);
-        }
+            id
+            {
+                variables.put($id.text, currentArgument);
+            }
     ) | (
-        UnderLine
-        {
-            addLastToBuffer("true");
-        }
+            UnderLine
     )
     ;
 
 call
-   :    id WS? ( arithmeticExpression WS )*
-   ;
+    :   LEFT_PARENTHESIS WS? id
+        {
+            addLastToBuffer($id.text + "(");
+        }
+        WS? (
+            arithmeticExpression WS
+            {
+                addLastToBuffer(", ");
+            }
+        )*
+        arithmeticExpression? WS?
+        RIGHT_PARENTHESIS
+        {
+            addLastToBuffer(")");
+        }
+    ;
 
 LEFT_PARENTHESIS
     :   '('
@@ -282,28 +318,62 @@ booleanExpression
 
 booleanMonomial
     :   booleanValue
-    |   ( BoolUnaryOperator WS booleanMonomial )
+    |   (
+            BoolUnaryOperator
+            {
+                addLastToBuffer("!");
+            }
+            WS booleanMonomial
+        )
     ;
 
 booleanExpressionSuffix
     :   WS?
-    |   ( boolBinaryOperator WS? booleanMonomial WS? booleanExpressionSuffix )
+    |   (
+            boolBinaryOperator
+            {
+                addLastToBuffer(" " + $boolBinaryOperator.text + " ");
+            }
+            WS? booleanMonomial WS? booleanExpressionSuffix
+        )
     ;
 
 booleanValue
     :   (
-        Bool
-        {
-            addLastToBuffer($Bool.text);
-        }
+            Bool
+            {
+                addLastToBuffer($Bool.text);
+            }
     ) | (
-        id
-        {
-            addLastToBuffer("arg" + variables.get($id.text));
-        }
-    )
-    |   ( arithmeticExpression WS? ordOperator WS? arithmeticExpression )
-    |   ( LEFT_PARENTHESIS WS? booleanExpression WS? ( EqOperator WS? booleanExpression WS? )? RIGHT_PARENTHESIS )
+            id
+            {
+                addLastToBuffer("arg" + variables.get($id.text));
+            }
+    ) | (
+            arithmeticExpression WS?
+            ordOperator
+            {
+                addLastToBuffer(" " + ($ordOperator.text.equals("/=") ? "!=" : $ordOperator.text) + " ");
+            }
+            WS? arithmeticExpression
+    ) | (
+            LEFT_PARENTHESIS WS?
+            {
+                addLastToBuffer("(");
+            }
+            booleanExpression WS?
+            (
+                EqOperator
+                {
+                    addLastToBuffer(" " + ($EqOperator.text.equals("/=") ? "!=" : $EqOperator.text) + " ");
+                }
+                WS? booleanExpression WS?
+            )?
+            RIGHT_PARENTHESIS
+            {
+                addLastToBuffer(")");
+            }
+        )
     ;
 
 boolBinaryOperator
@@ -328,36 +398,36 @@ arithmeticExpression
 arithmeticExpressionSuffix
     :   WS?
     |   (
-        ArithmeticBinaryOperator
-        {
-            addLastToBuffer($ArithmeticBinaryOperator.text);
-        }
-        WS? arithmeticValue WS? arithmeticExpressionSuffix
+            ArithmeticBinaryOperator WS?
+            {
+                addLastToBuffer(" " + ($ArithmeticBinaryOperator.text.equals("`div`") ? "/" : ($ArithmeticBinaryOperator.text.equals("`mod`") ? "%" : $ArithmeticBinaryOperator.text)) + " ");
+            }
+            arithmeticValue WS? arithmeticExpressionSuffix
     )
     ;
 
 arithmeticValue
     :   (
-        integral
-        {
-            addLastToBuffer($integral.text);
-        }
+            number
+            {
+                addLastToBuffer($number.text);
+            }
     ) | (
-        id
-        {
-            addLastToBuffer("arg" + variables.get($id.text));
-        }
+            id
+            {
+                addLastToBuffer("arg" + variables.get($id.text));
+            }
     ) | (
-        call
+            call
     ) | (
-        LEFT_PARENTHESIS WS?
-        {
-            addLastToBuffer("(");
-        }
-        arithmeticExpression WS? RIGHT_PARENTHESIS
-        {
-            addLastToBuffer(")");
-        }
+            LEFT_PARENTHESIS WS?
+            {
+                addLastToBuffer("(");
+            }
+            arithmeticExpression WS? RIGHT_PARENTHESIS
+            {
+                addLastToBuffer(")");
+            }
     )
     ;
 
@@ -366,10 +436,32 @@ ArithmeticBinaryOperator
     |   '-'
     |   '*'
     |   '/'
+    |   '`div`'
+    |   '`mod`'
+    ;
+number
+    :   integral
+    |   fractional
     ;
 
 integral
     :   Sign? Digit+
+    ;
+
+fractional
+    :   Digit+ Point Digit* Exponent?
+    |   Point Digit+ Exponent?
+    |   Digit+ Exponent
+    |   Digit+
+    ;
+
+Exponent
+    :   (
+            'e'
+        |   'E'
+        )
+        Sign?
+        Digit+
     ;
 
 WS
@@ -433,3 +525,6 @@ Sign
     |   '-'
     ;
 
+Point
+    :   '.'
+    ;

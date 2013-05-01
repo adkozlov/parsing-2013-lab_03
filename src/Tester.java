@@ -8,6 +8,7 @@ public class Tester {
     private static final String TESTS_FORMAT = "%s";
     private static final String TESTS_IN_EXTENSION = ".hs";
     private static final String TESTS_OUT_EXTENSION = ".java";
+    private static final String MASK = "Translated_";
 
     private static final String START_MESSAGE = TESTS_FORMAT + " started\n";
     private static final String SUCCESS_MESSAGE = TESTS_FORMAT + " succeeded\n";
@@ -33,8 +34,8 @@ public class Tester {
                 LanguageParser parser = new LanguageParser(new CommonTokenStream(lexer));
                 parser.program();
 
-                PrintWriter pw = new PrintWriter(TESTS_PATH + testName + TESTS_OUT_EXTENSION);
-                pw.println(parser.getCode(testName));
+                PrintWriter pw = new PrintWriter(TESTS_PATH + MASK + testName + TESTS_OUT_EXTENSION);
+                pw.println(parser.getCode(MASK, testName));
                 pw.close();
 
                 System.out.printf(SUCCESS_MESSAGE, fileName);
