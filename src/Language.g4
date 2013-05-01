@@ -123,7 +123,7 @@ function
     ;
 
 definition
-    :   id WS? '::' WS?
+    :   id WS? COLONS WS?
         {
             current = start($id.text);
             current.addLast($id.text + "(", true);
@@ -136,7 +136,7 @@ definition
                 }
                 current.addLast(getTypeName($Type.text) + " arg" + current.nextArgument(), true);
             }
-            WS? '->' WS? )*
+            WS? IMPLICATION WS? )*
         Type WS?
         {
             current.addLast(")", true);
@@ -146,13 +146,29 @@ definition
         }
     ;
 
+COLONS
+    :   '::'
+    ;
+
+IMPLICATION
+    :   '->'
+    ;
+
 mainDefinition
-    :   'main' WS? '::' WS? 'IO()'
-         {
+    :   MAIN WS? COLONS WS? IO
+        {
             current = start("main");
             current.addLast("void main(String[] args)", true);
             finish("main", current);
-         }
+        }
+    ;
+
+MAIN
+    :   'main'
+    ;
+
+IO
+    :   'IO()'
     ;
 
 implementation
@@ -183,7 +199,7 @@ implementation
                 buffer = "";
             }
         )* WS? (
-            '|' WS? booleanExpression WS?
+            CONDITION_PREFIX WS? booleanExpression WS?
             {
                 if (!isFirstArgument) {
                     arguments += " && ";
@@ -195,7 +211,7 @@ implementation
                 buffer = "";
             }
         )?
-        '=' WS?
+        ASSIGNMENT WS?
         {
             if (current.getLinesCount() != 0) {
                 current.addLast(" else ", false);
@@ -230,8 +246,16 @@ implementation
         }
     ;
 
+ASSIGNMENT
+    :   '='
+    ;
+
+CONDITION_PREFIX
+    :   '|'
+    ;
+
 mainImplementation
-    :   'main' WS? '=' WS? 'print' WS
+    :   MAIN WS? ASSIGNMENT WS? PRINT WS
     {
         current = start("main");
         current.needsThrow = false;
@@ -243,11 +267,15 @@ mainImplementation
     }
     ;
 
-comment
-    :   CommentLinePrefix ( ~NEWLINE )*
+PRINT
+    :   'print'
     ;
 
-CommentLinePrefix
+comment
+    :   COMMENT_LINE_PREFIX ( ~NEWLINE )*
+    ;
+
+COMMENT_LINE_PREFIX
     :   '--'
     ;
 
@@ -259,17 +287,17 @@ Type
 
 argument
     :   (
-            number
-            {
-                addLastToBuffer($number.text + " == arg" + currentArgument);
-            }
+        number
+        {
+            addLastToBuffer($number.text + " == arg" + currentArgument);
+        }
     ) | (
-            id
-            {
-                variables.put($id.text, currentArgument);
-            }
+        id
+        {
+            variables.put($id.text, currentArgument);
+        }
     ) | (
-            UnderLine
+        UNDERLINE
     )
     ;
 
@@ -319,60 +347,60 @@ booleanExpression
 booleanMonomial
     :   booleanValue
     |   (
-            BoolUnaryOperator
-            {
-                addLastToBuffer("!");
-            }
-            WS booleanMonomial
-        )
+        BoolUnaryOperator
+        {
+            addLastToBuffer("!");
+        }
+        WS booleanMonomial
+    )
     ;
 
 booleanExpressionSuffix
     :   WS?
     |   (
-            boolBinaryOperator
-            {
-                addLastToBuffer(" " + $boolBinaryOperator.text + " ");
-            }
-            WS? booleanMonomial WS? booleanExpressionSuffix
+        boolBinaryOperator
+        {
+            addLastToBuffer(" " + $boolBinaryOperator.text + " ");
+        }
+        WS? booleanMonomial WS? booleanExpressionSuffix
         )
     ;
 
 booleanValue
     :   (
-            Bool
-            {
-                addLastToBuffer($Bool.text);
-            }
+        Bool
+        {
+            addLastToBuffer($Bool.text);
+        }
     ) | (
-            id
-            {
-                addLastToBuffer("arg" + variables.get($id.text));
-            }
+        id
+        {
+            addLastToBuffer("arg" + variables.get($id.text));
+        }
     ) | (
-            arithmeticExpression WS?
-            ordOperator
-            {
-                addLastToBuffer(" " + ($ordOperator.text.equals("/=") ? "!=" : $ordOperator.text) + " ");
-            }
-            WS? arithmeticExpression
+        arithmeticExpression WS?
+        ordOperator
+        {
+            addLastToBuffer(" " + ($ordOperator.text.equals("/=") ? "!=" : $ordOperator.text) + " ");
+        }
+        WS? arithmeticExpression
     ) | (
-            LEFT_PARENTHESIS WS?
+        LEFT_PARENTHESIS WS?
+        {
+            addLastToBuffer("(");
+        }
+        booleanExpression WS?
+        (
+            EqOperator
             {
-                addLastToBuffer("(");
+                addLastToBuffer(" " + ($EqOperator.text.equals("/=") ? "!=" : $EqOperator.text) + " ");
             }
-            booleanExpression WS?
-            (
-                EqOperator
-                {
-                    addLastToBuffer(" " + ($EqOperator.text.equals("/=") ? "!=" : $EqOperator.text) + " ");
-                }
-                WS? booleanExpression WS?
-            )?
-            RIGHT_PARENTHESIS
-            {
-                addLastToBuffer(")");
-            }
+            WS? booleanExpression WS?
+        )?
+        RIGHT_PARENTHESIS
+        {
+            addLastToBuffer(")");
+        }
         )
     ;
 
@@ -398,36 +426,36 @@ arithmeticExpression
 arithmeticExpressionSuffix
     :   WS?
     |   (
-            ArithmeticBinaryOperator WS?
-            {
-                addLastToBuffer(" " + ($ArithmeticBinaryOperator.text.equals("`div`") ? "/" : ($ArithmeticBinaryOperator.text.equals("`mod`") ? "%" : $ArithmeticBinaryOperator.text)) + " ");
-            }
-            arithmeticValue WS? arithmeticExpressionSuffix
+        ArithmeticBinaryOperator WS?
+        {
+            addLastToBuffer(" " + ($ArithmeticBinaryOperator.text.equals("`div`") ? "/" : ($ArithmeticBinaryOperator.text.equals("`mod`") ? "%" : $ArithmeticBinaryOperator.text)) + " ");
+        }
+        arithmeticValue WS? arithmeticExpressionSuffix
     )
     ;
 
 arithmeticValue
     :   (
-            number
-            {
-                addLastToBuffer($number.text);
-            }
+        number
+        {
+            addLastToBuffer($number.text);
+        }
     ) | (
-            id
-            {
-                addLastToBuffer("arg" + variables.get($id.text));
-            }
+        id
+        {
+            addLastToBuffer("arg" + variables.get($id.text));
+        }
     ) | (
-            call
+        call
     ) | (
-            LEFT_PARENTHESIS WS?
-            {
-                addLastToBuffer("(");
-            }
-            arithmeticExpression WS? RIGHT_PARENTHESIS
-            {
-                addLastToBuffer(")");
-            }
+        LEFT_PARENTHESIS WS?
+        {
+            addLastToBuffer("(");
+        }
+        arithmeticExpression WS? RIGHT_PARENTHESIS
+        {
+            addLastToBuffer(")");
+        }
     )
     ;
 
@@ -445,14 +473,14 @@ number
     ;
 
 integral
-    :   Sign? Digit+
+    :   SIGN? DECIMAL_DIGIT+
     ;
 
 fractional
-    :   Digit+ Point Digit* Exponent?
-    |   Point Digit+ Exponent?
-    |   Digit+ Exponent
-    |   Digit+
+    :   DECIMAL_DIGIT+ DECIMAL_POINT DECIMAL_DIGIT* Exponent?
+    |   DECIMAL_POINT DECIMAL_DIGIT+ Exponent?
+    |   DECIMAL_DIGIT+ Exponent
+    |   DECIMAL_DIGIT+
     ;
 
 Exponent
@@ -460,8 +488,8 @@ Exponent
             'e'
         |   'E'
         )
-        Sign?
-        Digit+
+        SIGN?
+        DECIMAL_DIGIT+
     ;
 
 WS
@@ -475,56 +503,56 @@ NEWLINE
     :   '\n'
     ;
 
-LowerCase
+LOWER_CASE
     :   'a' .. 'z'
     ;
 
-UpperCase
+UPPER_CASE
     :   'A' .. 'Z'
     ;
 
-UnderLine
+UNDERLINE
     :   '_'
     ;
 
-Apostrophe
+APOSTROPHE
     :   '\''
     ;
 
 id
     :   (
         (
-            LowerCase
-        |   UpperCase
+            LOWER_CASE
+        |   UPPER_CASE
         ) idSuffix?
     )
     | (
-        UnderLine idSuffix
+        UNDERLINE idSuffix
     )
     ;
 
 idSuffix
     :   (
-            LowerCase
-        |   UpperCase
-        |   Digit
-        |   Apostrophe
+            LOWER_CASE
+        |   UPPER_CASE
+        |   DECIMAL_DIGIT
+        |   APOSTROPHE
     )+
     | (
-        UnderLine idSuffix?
+        UNDERLINE idSuffix?
     )
     ;
 
 
-Digit
+DECIMAL_DIGIT
     :   '0' .. '9'
     ;
 
-Sign
+SIGN
     :   '+'
     |   '-'
     ;
 
-Point
+DECIMAL_POINT
     :   '.'
     ;

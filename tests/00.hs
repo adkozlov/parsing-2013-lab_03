@@ -4,7 +4,7 @@ fac :: Int -> Int
 constant   ::   Int
 constant= 0
 
-strange::   Int -> Int -> Int
+strange ::   Int -> Int -> Int
 strange _ a_ = a_ `mod` 3
 
 
