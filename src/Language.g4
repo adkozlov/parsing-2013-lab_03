@@ -112,7 +112,13 @@ grammar Language;
 }
 
 program
-    :   NEWLINE* ( function WS? comment? NEWLINE+ )* EOF
+    :   NEWLINE* (
+            (
+                ( WS? comment)
+            |   ( function WS? comment? )
+            )
+            NEWLINE+
+        )* EOF
     ;
 
 function
@@ -420,7 +426,18 @@ Bool
     ;
 
 arithmeticExpression
-    :   arithmeticValue WS? arithmeticExpressionSuffix
+    :   arithmeticMonomial WS? arithmeticExpressionSuffix
+    ;
+
+arithmeticMonomial
+    :   arithmeticValue
+    |   (
+        SIGN
+        {
+            addLastToBuffer($SIGN.text);
+        }
+        arithmeticMonomial
+    )
     ;
 
 arithmeticExpressionSuffix
@@ -430,7 +447,7 @@ arithmeticExpressionSuffix
         {
             addLastToBuffer(" " + ($ArithmeticBinaryOperator.text.equals("`div`") ? "/" : ($ArithmeticBinaryOperator.text.equals("`mod`") ? "%" : $ArithmeticBinaryOperator.text)) + " ");
         }
-        arithmeticValue WS? arithmeticExpressionSuffix
+        arithmeticMonomial WS? arithmeticExpressionSuffix
     )
     ;
 
@@ -468,12 +485,13 @@ ArithmeticBinaryOperator
     |   '`mod`'
     ;
 number
-    :   integral
+    :
+        integral
     |   fractional
     ;
 
 integral
-    :   SIGN? DECIMAL_DIGIT+
+    :   DECIMAL_DIGIT+
     ;
 
 fractional

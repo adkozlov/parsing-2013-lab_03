@@ -1,5 +1,5 @@
 main :: IO()
-main = print (fac 5)
+main = print (fac (0-1))
 
 fac :: Int -> Int
 fac 0 = 1
